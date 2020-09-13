@@ -15,6 +15,6 @@ use rocket_contrib::serve::StaticFiles;
 fn main() {
     rocket::ignite()
         .mount("/api", routes![hello])
-        .mount("/", StaticFiles::from("./yew-app/static"))
+        .mount("/", StaticFiles::from("../../dist"))
         .launch();
 }
