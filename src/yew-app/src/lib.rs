@@ -1,14 +1,17 @@
 #![recursion_limit = "512"]
 
+use crate::Msg::SetMarkdownFetchState;
 use serde_derive::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 use strum_macros::{EnumIter, ToString};
 use wasm_bindgen::prelude::*;
 use yew::events::KeyboardEvent;
-use yew::format::Json;
+use yew::format::Json as JsonFormat;
 use yew::services::storage::{Area, StorageService};
 use yew::web_sys::HtmlInputElement as InputElement;
 use yew::{html, Component, ComponentLink, Href, Html, InputData, NodeRef, ShouldRender};
+use yewtil::fetch::{Fetch, FetchAction, FetchRequest, FetchState, Json, MethodBody};
+use yewtil::future::LinkFuture;
 
 const KEY: &str = "yew.todomvc.self";
 
@@ -17,6 +20,49 @@ pub struct Model {
     storage: StorageService,
     state: State,
     focus_ref: NodeRef,
+    message: Fetch<Request, RequestBody>,
+}
+
+#[derive(Default, Debug, Clone)]
+pub struct Request;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RequestBody {
+    id: usize,
+    contents: String,
+}
+
+impl Default for RequestBody {
+    fn default() -> RequestBody {
+        RequestBody {
+            id: 0,
+            contents: String::default(),
+        }
+    }
+}
+
+impl FetchRequest for Request {
+    type RequestBody = ();
+    type ResponseBody = RequestBody;
+    type Format = Json;
+
+    fn url(&self) -> String {
+        // Given that this is an external resource, this may fail sometime in the future.
+        // Please report any regressions related to this.
+        "http://localhost:8000/message/1".to_string()
+    }
+
+    fn method(&self) -> MethodBody<Self::RequestBody> {
+        MethodBody::Get
+    }
+
+    fn headers(&self) -> Vec<(String, String)> {
+        vec![]
+    }
+
+    fn use_cors(&self) -> bool {
+        true
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -47,6 +93,8 @@ pub enum Msg {
     ClearCompleted,
     Focus,
     Nope,
+    SetMarkdownFetchState(FetchAction<RequestBody>),
+    GetMarkdown,
 }
 
 impl Component for Model {
@@ -56,7 +104,7 @@ impl Component for Model {
     fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
         let storage = StorageService::new(Area::Local).expect("storage was disabled by the user");
         let entries = {
-            if let Json(Ok(restored_model)) = storage.restore(KEY) {
+            if let JsonFormat(Ok(restored_model)) = storage.restore(KEY) {
                 restored_model
             } else {
                 Vec::new()
@@ -69,11 +117,13 @@ impl Component for Model {
             edit_value: "".into(),
         };
         let focus_ref = NodeRef::default();
+        let message = Default::default();
         Model {
             link,
             storage,
             state,
             focus_ref,
+            message,
         }
     }
 
@@ -131,8 +181,17 @@ impl Component for Model {
                 }
             }
             Msg::Nope => {}
+            Msg::SetMarkdownFetchState(fetch_state) => {
+                self.message.apply(fetch_state);
+            }
+            Msg::GetMarkdown => {
+                self.link
+                    .send_future(self.message.fetch(Msg::SetMarkdownFetchState));
+                self.link
+                    .send_message(SetMarkdownFetchState(FetchAction::Fetching));
+            }
         }
-        self.storage.store(KEY, Json(&self.state.entries));
+        self.storage.store(KEY, JsonFormat(&self.state.entries));
         true
     }
 
@@ -150,7 +209,8 @@ impl Component for Model {
             <div class="todomvc-wrapper">
                 <section class="todoapp">
                     <header class="header">
-                        <h1>{ "todos" }</h1>
+                        <h1>{ "todos" }
+                        </h1>
                         { self.view_input() }
                     </header>
                     <section class=("main", hidden_class)>
@@ -180,6 +240,16 @@ impl Component for Model {
                 </section>
                 <footer class="info">
                     <p>{ "Double-click to edit a todo" }</p>
+                            {
+                                match self.message.as_ref().state() {
+                                    FetchState::NotFetching(_) => {
+                                        html! {<button onclick=self.link.callback(|_| Msg::GetMarkdown)>{"Get employees"}</button>}
+                                    }
+                                    FetchState::Fetching(_) => html! {"Fetching"},
+                                    FetchState::Fetched(body) => html! { body.contents.as_str() },
+                                    FetchState::Failed(_, err) => html! {&err},
+                                }
+                            }
                 </footer>
             </div>
         }
