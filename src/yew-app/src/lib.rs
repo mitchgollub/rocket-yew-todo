@@ -26,18 +26,15 @@ pub struct Model {
 #[derive(Default, Debug, Clone)]
 pub struct Request;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+// #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RequestBody {
-    id: usize,
-    contents: String,
+    tasks: Vec<Entry>,
 }
 
 impl Default for RequestBody {
     fn default() -> RequestBody {
-        RequestBody {
-            id: 0,
-            contents: String::default(),
-        }
+        RequestBody { tasks: Vec::new() }
     }
 }
 
@@ -49,7 +46,7 @@ impl FetchRequest for Request {
     fn url(&self) -> String {
         // Given that this is an external resource, this may fail sometime in the future.
         // Please report any regressions related to this.
-        "http://localhost:8000/message/1".to_string()
+        "http://localhost:8000/tasks".to_string()
     }
 
     fn method(&self) -> MethodBody<Self::RequestBody> {
@@ -73,7 +70,7 @@ pub struct State {
     edit_value: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct Entry {
     description: String,
     completed: bool,
@@ -103,13 +100,16 @@ impl Component for Model {
 
     fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
         let storage = StorageService::new(Area::Local).expect("storage was disabled by the user");
-        let entries = {
-            if let JsonFormat(Ok(restored_model)) = storage.restore(KEY) {
-                restored_model
-            } else {
-                Vec::new()
-            }
-        };
+        // let entries = {
+        //     if let JsonFormat(Ok(restored_model)) = storage.restore(KEY) {
+        //         restored_model
+        //     } else {
+        //         Vec::new()
+        //     }
+        // };
+
+        let entries = Vec::new();
+
         let state = State {
             entries,
             filter: Filter::All,
@@ -117,7 +117,12 @@ impl Component for Model {
             edit_value: "".into(),
         };
         let focus_ref = NodeRef::default();
-        let message = Default::default();
+        let message: Fetch<Request, RequestBody> = Default::default();
+
+        // Load task data on load
+        link.send_future(message.fetch(Msg::SetMarkdownFetchState));
+        link.send_message(SetMarkdownFetchState(FetchAction::Fetching));
+
         Model {
             link,
             storage,
@@ -182,7 +187,21 @@ impl Component for Model {
             }
             Msg::Nope => {}
             Msg::SetMarkdownFetchState(fetch_state) => {
-                self.message.apply(fetch_state);
+                match fetch_state {
+                    FetchAction::Failed(err) => {
+                        self.message.set_failed(err);
+                    }
+                    FetchAction::Fetched(res) => {
+                        // self.message.set_fetched(res);
+                        self.state.entries = res.tasks;
+                    }
+                    FetchAction::Fetching => {
+                        self.message.set_fetching();
+                    }
+                    FetchAction::NotFetching => {
+                        self.message.set_not_fetching();
+                    }
+                }
             }
             Msg::GetMarkdown => {
                 self.link
@@ -191,7 +210,7 @@ impl Component for Model {
                     .send_message(SetMarkdownFetchState(FetchAction::Fetching));
             }
         }
-        self.storage.store(KEY, JsonFormat(&self.state.entries));
+        // self.storage.store(KEY, JsonFormat(&self.state.entries));
         true
     }
 
@@ -240,16 +259,6 @@ impl Component for Model {
                 </section>
                 <footer class="info">
                     <p>{ "Double-click to edit a todo" }</p>
-                            {
-                                match self.message.as_ref().state() {
-                                    FetchState::NotFetching(_) => {
-                                        html! {<button onclick=self.link.callback(|_| Msg::GetMarkdown)>{"Get employees"}</button>}
-                                    }
-                                    FetchState::Fetching(_) => html! {"Fetching"},
-                                    FetchState::Fetched(body) => html! { body.contents.as_str() },
-                                    FetchState::Failed(_, err) => html! {&err},
-                                }
-                            }
                 </footer>
             </div>
         }

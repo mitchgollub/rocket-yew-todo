@@ -17,51 +17,71 @@ use rocket::State;
 use rocket_contrib::json::{Json, JsonValue};
 use rocket_contrib::serve::StaticFiles;
 
-// The type to represent the ID of a message.
+// The type to represent the ID of a entry.
 type ID = usize;
 
-// We're going to store all of the messages here. No need for a DB.
-type MessageMap = Mutex<HashMap<ID, String>>;
+// We're going to store all of the entrys here. No need for a DB.
+type EntryMap = Mutex<HashMap<ID, Entry>>;
 
-#[derive(Serialize, Deserialize)]
-struct Message {
-    id: Option<ID>,
-    contents: String,
+#[derive(Debug, Serialize, Deserialize)]
+struct Entry {
+    description: String,
+    completed: bool,
+    editing: bool,
 }
 
-// TODO: This example can be improved by using `route` with multiple HTTP verbs.
-#[post("/<id>", format = "json", data = "<message>")]
-fn new(id: ID, message: Json<Message>, map: State<MessageMap>) -> JsonValue {
-    let mut hashmap = map.lock().expect("map lock.");
-    if hashmap.contains_key(&id) {
-        json!({
-            "status": "error",
-            "reason": "ID exists. Try put."
-        })
-    } else {
-        hashmap.insert(id, message.0.contents);
-        json!({ "status": "ok" })
-    }
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TaskResponse {
+    tasks: Vec<Entry>,
 }
 
-#[put("/<id>", format = "json", data = "<message>")]
-fn update(id: ID, message: Json<Message>, map: State<MessageMap>) -> Option<JsonValue> {
-    let mut hashmap = map.lock().unwrap();
-    if hashmap.contains_key(&id) {
-        hashmap.insert(id, message.0.contents);
-        Some(json!({ "status": "ok" }))
-    } else {
-        None
-    }
-}
+// // TODO: This example can be improved by using `route` with multiple HTTP verbs.
+// #[post("/<id>", format = "json", data = "<entry>")]
+// fn new(id: ID, entry: Json<Entry>, map: State<EntryMap>) -> JsonValue {
+//     let mut hashmap = map.lock().expect("map lock.");
+//     if hashmap.contains_key(&id) {
+//         json!({
+//             "status": "error",
+//             "reason": "ID exists. Try put."
+//         })
+//     } else {
+//         hashmap.insert(id, entry.0.contents);
+//         json!({ "status": "ok" })
+//     }
+// }
 
-#[get("/<id>", format = "json")]
-fn get(id: ID, map: State<MessageMap>) -> Option<Json<Message>> {
+// #[put("/<id>", format = "json", data = "<entry>")]
+// fn update(id: ID, entry: Json<Entry>, map: State<EntryMap>) -> Option<JsonValue> {
+//     let mut hashmap = map.lock().unwrap();
+//     if hashmap.contains_key(&id) {
+//         hashmap.insert(id, entry.0.contents);
+//         Some(json!({ "status": "ok" }))
+//     } else {
+//         None
+//     }
+// }
+
+// #[get("/<id>", format = "json")]
+// fn get(id: ID, map: State<EntryMap>) -> Option<Json<Entry>> {
+//     let hashmap = map.lock().unwrap();
+//     hashmap.get(&id).map(|contents| {
+//         Json(Entry {
+//             id: Some(id),
+//             contents: contents.clone(),
+//         })
+//     })
+// }
+
+#[get("/", format = "json")]
+fn list(map: State<EntryMap>) -> Option<Json<TaskResponse>> {
     let hashmap = map.lock().unwrap();
-    hashmap.get(&id).map(|contents| {
-        Json(Message {
-            id: Some(id),
-            contents: contents.clone(),
+    hashmap.get(&1).map(|entry| {
+        Json(TaskResponse {
+            tasks: vec![Entry {
+                description: entry.description.to_string(),
+                completed: entry.completed,
+                editing: entry.editing,
+            }],
         })
     })
 }
@@ -75,11 +95,21 @@ fn not_found() -> JsonValue {
 }
 
 fn rocket() -> rocket::Rocket {
+    let mut map = HashMap::<ID, Entry>::new();
+    map.insert(
+        1,
+        Entry {
+            description: "stuff".to_string(),
+            completed: false,
+            editing: false,
+        },
+    );
     rocket::ignite()
-        .mount("/message", routes![new, update, get])
+        //.mount("/tasks", routes![new, update, get])
+        .mount("/tasks", routes![list])
         .mount("/", StaticFiles::from("../../dist"))
         .register(catchers![not_found])
-        .manage(Mutex::new(HashMap::<ID, String>::new()))
+        .manage(Mutex::new(map))
 }
 
 fn main() {
