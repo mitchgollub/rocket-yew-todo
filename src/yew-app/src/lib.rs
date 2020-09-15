@@ -1,7 +1,9 @@
 #![recursion_limit = "512"]
 
-use crate::Msg::SetMarkdownFetchState;
+mod services;
+use crate::Msg::SetTaskFetchState;
 use serde_derive::{Deserialize, Serialize};
+use services::task::{Entry, TaskFetchAction, TaskRequest};
 use strum::IntoEnumIterator;
 use strum_macros::{EnumIter, ToString};
 use wasm_bindgen::prelude::*;
@@ -20,46 +22,7 @@ pub struct Model {
     storage: StorageService,
     state: State,
     focus_ref: NodeRef,
-    message: Fetch<Request, RequestBody>,
-}
-
-#[derive(Default, Debug, Clone)]
-pub struct Request;
-
-// #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[derive(Debug, Serialize, Deserialize)]
-pub struct RequestBody {
-    tasks: Vec<Entry>,
-}
-
-impl Default for RequestBody {
-    fn default() -> RequestBody {
-        RequestBody { tasks: Vec::new() }
-    }
-}
-
-impl FetchRequest for Request {
-    type RequestBody = ();
-    type ResponseBody = RequestBody;
-    type Format = Json;
-
-    fn url(&self) -> String {
-        // Given that this is an external resource, this may fail sometime in the future.
-        // Please report any regressions related to this.
-        "http://localhost:8000/tasks".to_string()
-    }
-
-    fn method(&self) -> MethodBody<Self::RequestBody> {
-        MethodBody::Get
-    }
-
-    fn headers(&self) -> Vec<(String, String)> {
-        vec![]
-    }
-
-    fn use_cors(&self) -> bool {
-        true
-    }
+    message: TaskRequest,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -68,13 +31,6 @@ pub struct State {
     filter: Filter,
     value: String,
     edit_value: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct Entry {
-    description: String,
-    completed: bool,
-    editing: bool,
 }
 
 pub enum Msg {
@@ -90,8 +46,8 @@ pub enum Msg {
     ClearCompleted,
     Focus,
     Nope,
-    SetMarkdownFetchState(FetchAction<RequestBody>),
-    GetMarkdown,
+    SetTaskFetchState(TaskFetchAction),
+    GetTasks,
 }
 
 impl Component for Model {
@@ -117,11 +73,10 @@ impl Component for Model {
             edit_value: "".into(),
         };
         let focus_ref = NodeRef::default();
-        let message: Fetch<Request, RequestBody> = Default::default();
+        let message: TaskRequest = Default::default();
 
         // Load task data on load
-        link.send_future(message.fetch(Msg::SetMarkdownFetchState));
-        link.send_message(SetMarkdownFetchState(FetchAction::Fetching));
+        link.send_message(Msg::GetTasks);
 
         Model {
             link,
@@ -186,7 +141,7 @@ impl Component for Model {
                 }
             }
             Msg::Nope => {}
-            Msg::SetMarkdownFetchState(fetch_state) => {
+            Msg::SetTaskFetchState(fetch_state) => {
                 match fetch_state {
                     FetchAction::Failed(err) => {
                         self.message.set_failed(err);
@@ -203,11 +158,11 @@ impl Component for Model {
                     }
                 }
             }
-            Msg::GetMarkdown => {
+            Msg::GetTasks => {
                 self.link
-                    .send_future(self.message.fetch(Msg::SetMarkdownFetchState));
+                    .send_future(self.message.fetch(Msg::SetTaskFetchState));
                 self.link
-                    .send_message(SetMarkdownFetchState(FetchAction::Fetching));
+                    .send_message(SetTaskFetchState(FetchAction::Fetching));
             }
         }
         // self.storage.store(KEY, JsonFormat(&self.state.entries));
