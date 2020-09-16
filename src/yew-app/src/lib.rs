@@ -10,18 +10,13 @@ use strum::IntoEnumIterator;
 use strum_macros::{EnumIter, ToString};
 use wasm_bindgen::prelude::*;
 use yew::events::KeyboardEvent;
-use yew::format::Json as JsonFormat;
-use yew::services::storage::{Area, StorageService};
 use yew::web_sys::HtmlInputElement as InputElement;
 use yew::{html, Component, ComponentLink, Href, Html, InputData, NodeRef, ShouldRender};
-use yewtil::fetch::{Fetch, FetchAction, FetchRequest, FetchState, Json, MethodBody};
+use yewtil::fetch::FetchAction;
 use yewtil::future::LinkFuture;
-
-const KEY: &str = "yew.todomvc.self";
 
 pub struct Model {
     link: ComponentLink<Self>,
-    storage: StorageService,
     state: State,
     focus_ref: NodeRef,
     message: TaskRequest,
@@ -60,15 +55,6 @@ impl Component for Model {
     type Properties = ();
 
     fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
-        let storage = StorageService::new(Area::Local).expect("storage was disabled by the user");
-        // let entries = {
-        //     if let JsonFormat(Ok(restored_model)) = storage.restore(KEY) {
-        //         restored_model
-        //     } else {
-        //         Vec::new()
-        //     }
-        // };
-
         let entries = Vec::new();
 
         let state = State {
@@ -86,7 +72,6 @@ impl Component for Model {
 
         Model {
             link,
-            storage,
             state,
             focus_ref,
             message,
@@ -107,11 +92,15 @@ impl Component for Model {
                     self.state.entries.push(entry);
                 }
                 self.state.value = "".to_string();
+
+                self.link.send_message(Msg::UpdateTasks);
             }
             Msg::Edit(idx) => {
                 let edit_value = self.state.edit_value.trim().to_string();
                 self.state.complete_edit(idx, edit_value);
                 self.state.edit_value = "".to_string();
+
+                self.link.send_message(Msg::UpdateTasks);
             }
             Msg::Update(val) => {
                 println!("Input: {}", val);
@@ -123,6 +112,7 @@ impl Component for Model {
             }
             Msg::Remove(idx) => {
                 self.state.remove(idx);
+                self.link.send_message(Msg::UpdateTasks);
             }
             Msg::SetFilter(filter) => {
                 self.state.filter = filter;
@@ -135,12 +125,15 @@ impl Component for Model {
             Msg::ToggleAll => {
                 let status = !self.state.is_all_completed();
                 self.state.toggle_all(status);
+                self.link.send_message(Msg::UpdateTasks);
             }
             Msg::Toggle(idx) => {
                 self.state.toggle(idx);
+                self.link.send_message(Msg::UpdateTasks);
             }
             Msg::ClearCompleted => {
                 self.state.clear_completed();
+                self.link.send_message(Msg::UpdateTasks);
             }
             Msg::Focus => {
                 if let Some(input) = self.focus_ref.cast::<InputElement>() {
@@ -248,7 +241,7 @@ impl Component for Model {
                 <footer class="info">
                     <p>{ "Double-click to edit a todo" }</p>
                     <button onclick=self.link.callback(|_| Msg::UpdateTasks)>
-                    {format!("Save Tasks")}
+                        {format!("Save Tasks")}
                     </button>
                 </footer>
             </div>
