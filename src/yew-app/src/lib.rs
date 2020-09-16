@@ -3,7 +3,9 @@
 mod services;
 use crate::Msg::SetTaskFetchState;
 use serde_derive::{Deserialize, Serialize};
-use services::task::{Entry, TaskFetchAction, TaskRequest};
+use services::task::{
+    Entry, PutTaskRequest, RequestBody, TaskFetchAction, TaskRequest, UpdateTaskRequest,
+};
 use strum::IntoEnumIterator;
 use strum_macros::{EnumIter, ToString};
 use wasm_bindgen::prelude::*;
@@ -23,6 +25,7 @@ pub struct Model {
     state: State,
     focus_ref: NodeRef,
     message: TaskRequest,
+    update_message: UpdateTaskRequest,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -47,7 +50,9 @@ pub enum Msg {
     Focus,
     Nope,
     SetTaskFetchState(TaskFetchAction),
+    SetUpdateTaskFetchState(TaskFetchAction),
     GetTasks,
+    UpdateTasks,
 }
 
 impl Component for Model {
@@ -74,6 +79,7 @@ impl Component for Model {
         };
         let focus_ref = NodeRef::default();
         let message: TaskRequest = Default::default();
+        let update_message: UpdateTaskRequest = Default::default();
 
         // Load task data on load
         link.send_message(Msg::GetTasks);
@@ -84,6 +90,7 @@ impl Component for Model {
             state,
             focus_ref,
             message,
+            update_message,
         }
     }
 
@@ -158,11 +165,37 @@ impl Component for Model {
                     }
                 }
             }
+            Msg::SetUpdateTaskFetchState(fetch_state) => {
+                match fetch_state {
+                    FetchAction::Failed(err) => {
+                        self.update_message.set_failed(err);
+                    }
+                    FetchAction::Fetched(res) => {
+                        // self.message.set_fetched(res);
+                        self.state.entries = res.tasks;
+                    }
+                    FetchAction::Fetching => {
+                        self.update_message.set_fetching();
+                    }
+                    FetchAction::NotFetching => {
+                        self.update_message.set_not_fetching();
+                    }
+                }
+            }
             Msg::GetTasks => {
                 self.link
                     .send_future(self.message.fetch(Msg::SetTaskFetchState));
                 self.link
                     .send_message(SetTaskFetchState(FetchAction::Fetching));
+            }
+            Msg::UpdateTasks => {
+                let update_task = UpdateTaskRequest::new(PutTaskRequest {
+                    data: RequestBody {
+                        tasks: self.state.entries.to_vec(),
+                    },
+                });
+                self.link
+                    .send_future(update_task.fetch(Msg::SetUpdateTaskFetchState));
             }
         }
         // self.storage.store(KEY, JsonFormat(&self.state.entries));
@@ -214,6 +247,9 @@ impl Component for Model {
                 </section>
                 <footer class="info">
                     <p>{ "Double-click to edit a todo" }</p>
+                    <button onclick=self.link.callback(|_| Msg::UpdateTasks)>
+                    {format!("Save Tasks")}
+                    </button>
                 </footer>
             </div>
         }

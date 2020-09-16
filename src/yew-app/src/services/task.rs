@@ -74,7 +74,7 @@ impl FetchRequest for PutTaskRequest {
     }
 
     fn headers(&self) -> Vec<(String, String)> {
-        vec![]
+        vec![("Content-Type".to_string(), "application/json".to_string())]
     }
 
     fn use_cors(&self) -> bool {
