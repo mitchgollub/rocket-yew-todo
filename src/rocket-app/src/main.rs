@@ -6,67 +6,21 @@ extern crate rocket;
 extern crate rocket_contrib;
 #[macro_use]
 extern crate serde_derive;
+mod repositories;
 
-#[cfg(test)]
-mod tests;
-
-use std::sync::Mutex;
-
+use repositories::task::{update_tasks, Entry};
 use rocket::State;
+use rocket_contrib::databases;
 use rocket_contrib::json::{Json, JsonValue};
 use rocket_contrib::serve::StaticFiles;
+use std::sync::Mutex;
 
-// We're going to store all of the entrys here. No need for a DB.
 type EntryMap = Mutex<Vec<Entry>>;
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-struct Entry {
-    description: String,
-    completed: bool,
-    editing: bool,
-}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TaskResponse {
     tasks: Vec<Entry>,
 }
-
-// // TODO: This example can be improved by using `route` with multiple HTTP verbs.
-// #[post("/<id>", format = "json", data = "<entry>")]
-// fn new(id: ID, entry: Json<Entry>, map: State<EntryMap>) -> JsonValue {
-//     let mut entries = map.lock().expect("map lock.");
-//     if entries.contains_key(&id) {
-//         json!({
-//             "status": "error",
-//             "reason": "ID exists. Try put."
-//         })
-//     } else {
-//         entries.insert(id, entry.0.contents);
-//         json!({ "status": "ok" })
-//     }
-// }
-
-// #[put("/<id>", format = "json", data = "<entry>")]
-// fn update(id: ID, entry: Json<Entry>, map: State<EntryMap>) -> Option<JsonValue> {
-//     let mut entries = map.lock().unwrap();
-//     if entries.contains_key(&id) {
-//         entries.insert(id, entry.0.contents);
-//         Some(json!({ "status": "ok" }))
-//     } else {
-//         None
-//     }
-// }
-
-// #[get("/<id>", format = "json")]
-// fn get(id: ID, map: State<EntryMap>) -> Option<Json<Entry>> {
-//     let entries = map.lock().unwrap();
-//     entries.get(&id).map(|contents| {
-//         Json(Entry {
-//             id: Some(id),
-//             contents: contents.clone(),
-//         })
-//     })
-// }
 
 #[get("/", format = "json")]
 fn list(map: State<EntryMap>) -> Option<Json<TaskResponse>> {
@@ -82,11 +36,15 @@ fn update(request_entries: Json<TaskResponse>, map: State<EntryMap>) -> Option<J
     entries.clear();
     for val in request_entries.tasks.iter() {
         entries.push(Entry {
+            _id: val._id.to_string(),
             description: val.description.to_string(),
             completed: val.completed,
             editing: val.editing,
         });
     }
+
+    update_tasks(entries.to_vec());
+
     Some(Json(TaskResponse {
         tasks: entries.to_vec(),
     }))
@@ -101,14 +59,9 @@ fn not_found() -> JsonValue {
 }
 
 fn rocket() -> rocket::Rocket {
-    let mut entries = Vec::new();
-    entries.push(Entry {
-        description: "stuff".to_string(),
-        completed: false,
-        editing: false,
-    });
+    let entries: Vec<Entry> = Vec::new();
+
     rocket::ignite()
-        //.mount("/tasks", routes![new, update, get])
         .mount("/tasks", routes![list, update])
         .mount("/", StaticFiles::from("../../dist"))
         .register(catchers![not_found])

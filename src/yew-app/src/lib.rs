@@ -85,6 +85,7 @@ impl Component for Model {
                 let description = self.state.value.trim();
                 if !description.is_empty() {
                     let entry = Entry {
+                        _id: "".into(),
                         description: description.to_string(),
                         completed: false,
                         editing: false,

@@ -7,8 +7,12 @@ pub type UpdateTaskRequest = Fetch<PutTaskRequest, RequestBody>;
 
 pub type TaskFetchAction = FetchAction<RequestBody>;
 
+const TASK_API_URL: &str = "/tasks";
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Entry {
+    #[serde(default)]
+    pub _id: String,
     pub description: String,
     pub completed: bool,
     pub editing: bool,
@@ -40,9 +44,7 @@ impl FetchRequest for GetTaskRequest {
     type Format = Json;
 
     fn url(&self) -> String {
-        // Given that this is an external resource, this may fail sometime in the future.
-        // Please report any regressions related to this.
-        "http://localhost:8000/tasks".to_string()
+        TASK_API_URL.to_string()
     }
 
     fn method(&self) -> MethodBody<Self::RequestBody> {
@@ -52,10 +54,6 @@ impl FetchRequest for GetTaskRequest {
     fn headers(&self) -> Vec<(String, String)> {
         vec![]
     }
-
-    fn use_cors(&self) -> bool {
-        true
-    }
 }
 
 impl FetchRequest for PutTaskRequest {
@@ -64,9 +62,7 @@ impl FetchRequest for PutTaskRequest {
     type Format = Json;
 
     fn url(&self) -> String {
-        // Given that this is an external resource, this may fail sometime in the future.
-        // Please report any regressions related to this.
-        "http://localhost:8000/tasks".to_string()
+        TASK_API_URL.to_string()
     }
 
     fn method(&self) -> MethodBody<Self::RequestBody> {
@@ -75,9 +71,5 @@ impl FetchRequest for PutTaskRequest {
 
     fn headers(&self) -> Vec<(String, String)> {
         vec![("Content-Type".to_string(), "application/json".to_string())]
-    }
-
-    fn use_cors(&self) -> bool {
-        true
     }
 }
