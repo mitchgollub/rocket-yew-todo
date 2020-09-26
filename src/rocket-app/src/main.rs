@@ -8,7 +8,7 @@ extern crate rocket_contrib;
 extern crate serde_derive;
 mod repositories;
 
-use repositories::task::{update_tasks, Entry};
+use repositories::task::{get_tasks, update_tasks, Entry};
 use rocket::State;
 use rocket_contrib::databases;
 use rocket_contrib::json::{Json, JsonValue};
@@ -23,10 +23,10 @@ pub struct TaskResponse {
 }
 
 #[get("/", format = "json")]
-fn list(map: State<EntryMap>) -> Option<Json<TaskResponse>> {
-    let entries = map.lock().unwrap();
+fn list() -> Option<Json<TaskResponse>> {
+    let response = get_tasks();
     Some(Json(TaskResponse {
-        tasks: entries.to_vec(),
+        tasks: response.unwrap(),
     }))
 }
 
@@ -43,10 +43,10 @@ fn update(request_entries: Json<TaskResponse>, map: State<EntryMap>) -> Option<J
         });
     }
 
-    update_tasks(entries.to_vec());
+    let response = update_tasks(entries.to_vec());
 
     Some(Json(TaskResponse {
-        tasks: entries.to_vec(),
+        tasks: response.unwrap(),
     }))
 }
 
