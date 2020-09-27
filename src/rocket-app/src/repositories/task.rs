@@ -27,7 +27,7 @@ impl From<Entry> for Bson {
 
 pub fn get_tasks() -> Result<Vec<Entry>, Error> {
     let client = Client::with_uri_str(env::var("MONGODB_URI").unwrap().as_str())?;
-    let database = client.database("mafia-dev");
+    let database = client.database("rust-todo");
     let collection = database.collection("rust-todo");
 
     let mut documents = Vec::new();
@@ -61,7 +61,7 @@ pub fn get_tasks() -> Result<Vec<Entry>, Error> {
 
 pub fn update_tasks(entries: Vec<Entry>) -> Result<Vec<Entry>, Error> {
     let client = Client::with_uri_str(env::var("MONGODB_URI").unwrap().as_str())?;
-    let database = client.database("mafia-dev");
+    let database = client.database("rust-todo");
     let collection = database.collection("rust-todo");
 
     let mut updates = Vec::new();
@@ -75,25 +75,38 @@ pub fn update_tasks(entries: Vec<Entry>) -> Result<Vec<Entry>, Error> {
             "editing": entry.editing
         };
 
-        // Need to create this only if _id is not an empty string
-        let cursor = collection.find(
-            match entry._id.is_empty() {
-                false => doc! {
-                    "_id": ObjectId::with_string(entry._id.as_str()).unwrap()
-                },
-                true => doc! {},
-            },
-            None,
-        )?;
-        let mut results: Vec<Result<Document, Error>> = cursor.collect();
-        if results.len() == 1 {
-            collection.update_one(results.pop().unwrap().unwrap(), update_doc.clone(), None)?;
-            updates.push(new_entry);
-        } else {
-            let insert_response = collection.insert_one(update_doc.clone(), None)?;
-            new_entry._id = insert_response.inserted_id.as_object_id().unwrap().to_hex();
-            updates.push(new_entry);
+        // _id will be an empty string for new entries from front-end
+        match entry._id.is_empty() {
+            false => {
+                // Update Document
+                let cursor = collection.find(
+                    doc! {
+                        "_id": ObjectId::with_string(entry._id.as_str()).unwrap()
+                    },
+                    None,
+                )?;
+                let mut results: Vec<Result<Document, Error>> = cursor.collect();
+
+                // Make sure document exists
+                if results.len() == 1 {
+                    collection.update_one(
+                        results.pop().unwrap().unwrap(),
+                        update_doc.clone(),
+                        None,
+                    )?;
+                } else {
+                    let insert_response = collection.insert_one(update_doc.clone(), None)?;
+                    new_entry._id = insert_response.inserted_id.as_object_id().unwrap().to_hex();
+                }
+            }
+            true => {
+                // Insert new document
+                let insert_response = collection.insert_one(update_doc.clone(), None)?;
+                new_entry._id = insert_response.inserted_id.as_object_id().unwrap().to_hex();
+            }
         }
+
+        updates.push(new_entry);
     }
 
     Ok(updates)

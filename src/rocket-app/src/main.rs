@@ -10,7 +10,6 @@ mod repositories;
 
 use repositories::task::{get_tasks, update_tasks, Entry};
 use rocket::State;
-use rocket_contrib::databases;
 use rocket_contrib::json::{Json, JsonValue};
 use rocket_contrib::serve::StaticFiles;
 use std::sync::Mutex;
