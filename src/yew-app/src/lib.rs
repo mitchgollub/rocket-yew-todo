@@ -159,23 +159,20 @@ impl Component for Model {
                     }
                 }
             }
-            Msg::SetUpdateTaskFetchState(fetch_state) => {
-                match fetch_state {
-                    FetchAction::Failed(err) => {
-                        self.update_message.set_failed(err);
-                    }
-                    FetchAction::Fetched(res) => {
-                        // self.message.set_fetched(res);
-                        self.state.entries = res.tasks;
-                    }
-                    FetchAction::Fetching => {
-                        self.update_message.set_fetching();
-                    }
-                    FetchAction::NotFetching => {
-                        self.update_message.set_not_fetching();
-                    }
+            Msg::SetUpdateTaskFetchState(fetch_state) => match fetch_state {
+                FetchAction::Failed(err) => {
+                    self.update_message.set_failed(err);
                 }
-            }
+                FetchAction::Fetched(res) => {
+                    self.state.entries = res.tasks;
+                }
+                FetchAction::Fetching => {
+                    self.update_message.set_fetching();
+                }
+                FetchAction::NotFetching => {
+                    self.update_message.set_not_fetching();
+                }
+            },
             Msg::GetTasks => {
                 self.link
                     .send_future(self.message.fetch(Msg::SetTaskFetchState));
@@ -192,7 +189,6 @@ impl Component for Model {
                     .send_future(update_task.fetch(Msg::SetUpdateTaskFetchState));
             }
         }
-        // self.storage.store(KEY, JsonFormat(&self.state.entries));
         true
     }
 

@@ -1,9 +1,22 @@
 use mongodb::{
     bson::{bson, doc, oid::ObjectId, Bson, Document},
     error::Error,
-    sync::Client,
+    sync::{Client, Collection},
 };
 use std::env;
+
+fn get_env_var(variable_name: String) -> String {
+    match env::var(variable_name) {
+        Ok(value) => value,
+        Err(err) => panic!(format!("{:?}", err)),
+    }
+}
+
+fn connect() -> Collection {
+    let client = Client::with_uri_str(&get_env_var("MONGODB_URI".into())).unwrap();
+    let database = client.database(&get_env_var("MONGODB_DB".into()));
+    database.collection(&get_env_var("MONGODB_COLLECTION".into()))
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Entry {
@@ -26,10 +39,7 @@ impl From<Entry> for Bson {
 }
 
 pub fn get_tasks() -> Result<Vec<Entry>, Error> {
-    let client = Client::with_uri_str(env::var("MONGODB_URI").unwrap().as_str())?;
-    let database = client.database("rust-todo");
-    let collection = database.collection("rust-todo");
-
+    let collection = connect();
     let mut documents = Vec::new();
     let cursor = collection.find(doc! {}, None)?;
 
@@ -60,9 +70,7 @@ pub fn get_tasks() -> Result<Vec<Entry>, Error> {
 }
 
 pub fn update_tasks(entries: Vec<Entry>) -> Result<Vec<Entry>, Error> {
-    let client = Client::with_uri_str(env::var("MONGODB_URI").unwrap().as_str())?;
-    let database = client.database("rust-todo");
-    let collection = database.collection("rust-todo");
+    let collection = connect();
 
     let mut updates = Vec::new();
 
