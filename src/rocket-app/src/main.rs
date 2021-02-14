@@ -7,11 +7,13 @@ extern crate rocket_contrib;
 #[macro_use]
 extern crate serde_derive;
 mod repositories;
+mod services;
 
-use repositories::task::{get_tasks, update_tasks, Entry};
+use repositories::task::{Entry, TaskRepository};
 use rocket::State;
 use rocket_contrib::json::{Json, JsonValue};
 use rocket_contrib::serve::StaticFiles;
+use services::config::Config;
 use std::sync::Mutex;
 
 type EntryMap = Mutex<Vec<Entry>>;
@@ -22,15 +24,19 @@ pub struct TaskResponse {
 }
 
 #[get("/", format = "json")]
-fn list() -> Option<Json<TaskResponse>> {
-    let response = get_tasks();
+fn list(task_repo: State<TaskRepository>) -> Option<Json<TaskResponse>> {
+    let response = task_repo.get_tasks();
     Some(Json(TaskResponse {
         tasks: response.unwrap(),
     }))
 }
 
 #[put("/", format = "json", data = "<request_entries>")]
-fn update(request_entries: Json<TaskResponse>, map: State<EntryMap>) -> Option<Json<TaskResponse>> {
+fn update(
+    request_entries: Json<TaskResponse>,
+    map: State<EntryMap>,
+    task_repo: State<TaskRepository>,
+) -> Option<Json<TaskResponse>> {
     let mut entries = map.lock().unwrap();
     entries.clear();
     for val in request_entries.tasks.iter() {
@@ -42,7 +48,7 @@ fn update(request_entries: Json<TaskResponse>, map: State<EntryMap>) -> Option<J
         });
     }
 
-    let response = update_tasks(entries.to_vec());
+    let response = task_repo.update_tasks(entries.to_vec());
 
     Some(Json(TaskResponse {
         tasks: response.unwrap(),
@@ -59,12 +65,14 @@ fn not_found() -> JsonValue {
 
 fn rocket() -> rocket::Rocket {
     let entries: Vec<Entry> = Vec::new();
+    let config_service = Config::new();
 
     rocket::ignite()
         .mount("/tasks", routes![list, update])
-        .mount("/", StaticFiles::from("../../dist"))
+        .mount("/", StaticFiles::from(&config_service.static_files))
         .register(catchers![not_found])
         .manage(Mutex::new(entries))
+        .manage(TaskRepository::new(config_service))
 }
 
 fn main() {
