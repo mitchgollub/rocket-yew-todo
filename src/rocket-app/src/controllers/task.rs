@@ -69,3 +69,26 @@ pub fn update_entry(
         tasks: entries.to_vec(),
     }))
 }
+
+#[delete("/<entry_id>", format = "json")]
+pub fn delete_entry(
+    entry_id: String,
+    map: State<EntryMap>,
+    task_repo: State<Mutex<TaskService>>,
+) -> Option<Json<TaskResponse>> {
+    let response = task_repo.lock().unwrap().delete_task(entry_id);
+
+    let deleted_entry_id = response.unwrap();
+    let mut entries = map.lock().unwrap();
+    let entries_clone = entries.to_vec();
+    for (idx, entry) in entries_clone.into_iter().enumerate() {
+        if entry._id == deleted_entry_id {
+            entries.remove(idx);
+            break;
+        }
+    }
+
+    Some(Json(TaskResponse {
+        tasks: entries.to_vec(),
+    }))
+}

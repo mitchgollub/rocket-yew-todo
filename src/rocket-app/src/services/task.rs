@@ -58,4 +58,8 @@ impl TaskService {
 
         Ok(updates)
     }
+
+    pub fn delete_task(&mut self, entry_id: String) -> Result<String, Error> {
+        self.mongo_client.delete_task(entry_id)
+    }
 }
