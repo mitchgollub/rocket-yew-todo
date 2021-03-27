@@ -1,9 +1,10 @@
 use super::super::Config;
 use mongodb::{
-    bson::{bson, doc, oid::ObjectId, Bson, Document},
+    bson::{doc, oid::ObjectId, Bson, Document},
     error::Error,
     sync::{Client, Collection},
 };
+use todo_models::Entry;
 
 pub struct TaskRepository {
     config_service: Config,
@@ -103,25 +104,5 @@ impl TaskRepository {
         }
 
         Ok(updates)
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Entry {
-    #[serde(default)]
-    pub _id: String,
-    pub completed: bool,
-    pub description: String,
-    pub editing: bool,
-}
-
-impl From<Entry> for Bson {
-    fn from(entry: Entry) -> Bson {
-        bson!({
-            "_id": entry._id,
-            "completed": entry.completed,
-            "description": entry.description,
-            "editing": entry.editing
-        })
     }
 }

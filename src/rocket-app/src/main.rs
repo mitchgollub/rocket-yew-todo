@@ -4,24 +4,18 @@
 extern crate rocket;
 #[macro_use]
 extern crate rocket_contrib;
-#[macro_use]
-extern crate serde_derive;
 mod repositories;
 mod services;
 
-use repositories::task::{Entry, TaskRepository};
+use repositories::task::TaskRepository;
 use rocket::State;
 use rocket_contrib::json::{Json, JsonValue};
 use rocket_contrib::serve::StaticFiles;
 use services::config::Config;
 use std::sync::Mutex;
+use todo_models::{Entry, TaskResponse};
 
 type EntryMap = Mutex<Vec<Entry>>;
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct TaskResponse {
-    tasks: Vec<Entry>,
-}
 
 #[get("/", format = "json")]
 fn list(task_repo: State<TaskRepository>) -> Option<Json<TaskResponse>> {

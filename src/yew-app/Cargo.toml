@@ -4,15 +4,15 @@ version = "0.1.0"
 authors = ["mitchgollub <mgollub@live.com>"]
 edition = "2018"
 
-
 [dependencies]
-strum = "0.19"
-strum_macros = "0.19"
 serde = "1"
 serde_derive = "1"
+strum = "0.19"
+strum_macros = "0.19"
 wasm-bindgen = "0.2.67"
 yew = "0.17"
 yewtil = { version = "0.3.2", features = ["fetch"] }
+todo_models = { path = "../todo_models" }
 
 [lib]
 crate-type = ["cdylib", "rlib"]

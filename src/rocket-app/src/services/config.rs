@@ -3,7 +3,7 @@ use std::env;
 fn get_env_var(variable_name: String) -> String {
     match env::var(variable_name) {
         Ok(value) => value,
-        Err(err) => panic!(format!("{:?}", err)),
+        Err(err) => panic!("{:?}", err),
     }
 }
 

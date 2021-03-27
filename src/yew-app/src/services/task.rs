@@ -1,4 +1,5 @@
 use serde_derive::{Deserialize, Serialize};
+use todo_models::Entry;
 use yewtil::fetch::{Fetch, FetchAction, FetchRequest, Json, MethodBody};
 
 pub type TaskRequest = Fetch<GetTaskRequest, RequestBody>;
@@ -8,15 +9,6 @@ pub type UpdateTaskRequest = Fetch<PutTaskRequest, RequestBody>;
 pub type TaskFetchAction = FetchAction<RequestBody>;
 
 const TASK_API_URL: &str = "/tasks";
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Entry {
-    #[serde(default)]
-    pub _id: String,
-    pub description: String,
-    pub completed: bool,
-    pub editing: bool,
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct GetTaskRequest;

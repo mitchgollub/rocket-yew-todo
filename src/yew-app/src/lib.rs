@@ -4,10 +4,11 @@ mod services;
 use crate::Msg::SetTaskFetchState;
 use serde_derive::{Deserialize, Serialize};
 use services::task::{
-    Entry, PutTaskRequest, RequestBody, TaskFetchAction, TaskRequest, UpdateTaskRequest,
+    PutTaskRequest, RequestBody, TaskFetchAction, TaskRequest, UpdateTaskRequest,
 };
 use strum::IntoEnumIterator;
 use strum_macros::{EnumIter, ToString};
+use todo_models::Entry;
 use wasm_bindgen::prelude::*;
 use yew::events::KeyboardEvent;
 use yew::web_sys::HtmlInputElement as InputElement;
