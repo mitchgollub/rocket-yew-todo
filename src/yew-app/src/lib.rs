@@ -4,6 +4,7 @@ mod services;
 use crate::services::task_client::TaskClient;
 use anyhow::Error;
 use serde_derive::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use strum::IntoEnumIterator;
 use strum_macros::{EnumIter, ToString};
 use todo_models::{Entry, TaskRequest, TaskResponse};
@@ -18,8 +19,7 @@ pub struct Model {
     link: ComponentLink<Self>,
     state: State,
     focus_ref: NodeRef,
-    get_tasks: Option<FetchTask>,
-    update_tasks: Option<FetchTask>,
+    update_tasks: BTreeMap<u64, FetchTask>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -28,6 +28,7 @@ pub struct State {
     filter: Filter,
     value: String,
     edit_value: String,
+    request_counter: u64,
 }
 
 pub enum Msg {
@@ -45,7 +46,7 @@ pub enum Msg {
     Nope,
     GetTasks,
     UpdateTasks,
-    TasksReceived(Result<TaskResponse, Error>),
+    TasksReceived(u64, Result<TaskResponse, Error>),
 }
 
 impl Component for Model {
@@ -60,6 +61,7 @@ impl Component for Model {
             filter: Filter::All,
             value: "".into(),
             edit_value: "".into(),
+            request_counter: 0,
         };
         let focus_ref = NodeRef::default();
 
@@ -70,8 +72,7 @@ impl Component for Model {
             link,
             state,
             focus_ref,
-            get_tasks: None,
-            update_tasks: None,
+            update_tasks: BTreeMap::new(),
         }
     }
 
@@ -139,29 +140,31 @@ impl Component for Model {
             }
             Msg::Nope => {}
             Msg::GetTasks => {
-                self.get_tasks = TaskClient::get_tasks(&self.link);
+                let request_id = self.state.request_counter;
+                self.state.request_counter += 1;
+                self.update_tasks
+                    .insert(request_id, TaskClient::get_tasks(&self.link, request_id));
             }
-            Msg::TasksReceived(data) => {
-                self.get_tasks = None;
+            Msg::TasksReceived(request_id, data) => {
+                self.update_tasks.remove(&request_id);
                 match data {
                     Ok(response) => self.state.entries = response.tasks,
                     Err(e) => ConsoleService::error(&e.to_string()),
                 };
             }
             Msg::UpdateTasks => {
-                self.update_tasks = TaskClient::update_tasks(
-                    &self.link,
-                    &TaskRequest {
-                        tasks: self.state.entries.clone(),
-                    },
+                let request_id = self.state.request_counter;
+                self.state.request_counter += 1;
+                self.update_tasks.insert(
+                    request_id,
+                    TaskClient::update_tasks(
+                        &self.link,
+                        request_id,
+                        &TaskRequest {
+                            tasks: self.state.entries.clone(),
+                        },
+                    ),
                 );
-                // let update_task = UpdateTaskRequest::new(PutTaskRequest {
-                //     data: RequestBody {
-                //         tasks: self.state.entries.to_vec(),
-                //     },
-                // });
-                // self.link
-                //     .send_future(update_task.fetch(Msg::SetUpdateTaskFetchState));
             }
         }
         true

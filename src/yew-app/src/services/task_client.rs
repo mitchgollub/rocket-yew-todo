@@ -10,30 +10,34 @@ const TASK_API_URL: &str = "/tasks";
 pub struct TaskClient {}
 
 impl TaskClient {
-    pub fn get_tasks(link: &ComponentLink<Model>) -> Option<FetchTask> {
+    pub fn get_tasks(link: &ComponentLink<Model>, request_id: u64) -> FetchTask {
         let request = Request::get(TASK_API_URL)
             .body(Nothing)
             .expect("Could not build request.");
         let callback = link.callback(
-            |response: Response<Json<Result<TaskResponse, anyhow::Error>>>| {
+            move |response: Response<Json<Result<TaskResponse, anyhow::Error>>>| {
                 let Json(data) = response.into_body();
-                Msg::TasksReceived(data)
+                Msg::TasksReceived(request_id, data)
             },
         );
-        Some(FetchService::fetch(request, callback).expect("failed to start request"))
+        FetchService::fetch(request, callback).expect("failed to start request")
     }
 
-    pub fn update_tasks(link: &ComponentLink<Model>, tasks: &TaskRequest) -> Option<FetchTask> {
+    pub fn update_tasks(
+        link: &ComponentLink<Model>,
+        request_id: u64,
+        tasks: &TaskRequest,
+    ) -> FetchTask {
         let request = Request::put(TASK_API_URL)
             .header("Content-Type", "application/json")
             .body(Json(tasks))
             .expect("Could not build request.");
         let callback = link.callback(
-            |response: Response<Json<Result<TaskResponse, anyhow::Error>>>| {
+            move |response: Response<Json<Result<TaskResponse, anyhow::Error>>>| {
                 let Json(data) = response.into_body();
-                Msg::TasksReceived(data)
+                Msg::TasksReceived(request_id, data)
             },
         );
-        Some(FetchService::fetch(request, callback).expect("failed to start request"))
+        FetchService::fetch(request, callback).expect("failed to start request")
     }
 }
