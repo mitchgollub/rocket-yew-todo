@@ -7,6 +7,7 @@ fn get_env_var(variable_name: String) -> String {
     }
 }
 
+#[derive(Clone)]
 pub struct Config {
     pub mongodb_uri: String,
     pub mongodb_db: String,

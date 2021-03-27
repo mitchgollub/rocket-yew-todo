@@ -7,19 +7,21 @@ extern crate rocket_contrib;
 mod repositories;
 mod services;
 
-use repositories::task::TaskRepository;
+use repositories::mongo_client::MongoClient;
 use rocket::State;
-use rocket_contrib::json::{Json, JsonValue};
-use rocket_contrib::serve::StaticFiles;
-use services::config::Config;
+use rocket_contrib::{
+    json::{Json, JsonValue},
+    serve::StaticFiles,
+};
+use services::{config::Config, task::TaskService};
 use std::sync::Mutex;
 use todo_models::{Entry, TaskResponse};
 
 type EntryMap = Mutex<Vec<Entry>>;
 
 #[get("/", format = "json")]
-fn list(task_repo: State<TaskRepository>) -> Option<Json<TaskResponse>> {
-    let response = task_repo.get_tasks();
+fn list(task_repo: State<Mutex<TaskService>>) -> Option<Json<TaskResponse>> {
+    let response = task_repo.lock().unwrap().get_tasks();
     Some(Json(TaskResponse {
         tasks: response.unwrap(),
     }))
@@ -29,7 +31,7 @@ fn list(task_repo: State<TaskRepository>) -> Option<Json<TaskResponse>> {
 fn update(
     request_entries: Json<TaskResponse>,
     map: State<EntryMap>,
-    task_repo: State<TaskRepository>,
+    task_repo: State<Mutex<TaskService>>,
 ) -> Option<Json<TaskResponse>> {
     let mut entries = map.lock().unwrap();
     entries.clear();
@@ -42,7 +44,7 @@ fn update(
         });
     }
 
-    let response = task_repo.update_tasks(entries.to_vec());
+    let response = task_repo.lock().unwrap().update_tasks(entries.to_vec());
 
     Some(Json(TaskResponse {
         tasks: response.unwrap(),
@@ -60,13 +62,14 @@ fn not_found() -> JsonValue {
 fn rocket() -> rocket::Rocket {
     let entries: Vec<Entry> = Vec::new();
     let config_service = Config::new();
+    let mongo_client = MongoClient::new(config_service.clone());
 
     rocket::ignite()
         .mount("/tasks", routes![list, update])
         .mount("/", StaticFiles::from(&config_service.static_files))
         .register(catchers![not_found])
         .manage(Mutex::new(entries))
-        .manage(TaskRepository::new(config_service))
+        .manage(Mutex::new(TaskService::new(mongo_client)))
 }
 
 fn main() {

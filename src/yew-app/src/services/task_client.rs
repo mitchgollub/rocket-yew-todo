@@ -36,20 +36,4 @@ impl TaskClient {
         );
         Some(FetchService::fetch(request, callback).expect("failed to start request"))
     }
-
-    // pub fn delete_all(link: &ComponentLink<Model>) -> Option<FetchTask> {
-    //     let request = Request::delete(TASK_API_URL)
-    //         .header("Content-Type", "application/json")
-    //         .body(Nothing)
-    //         .expect("Could not build request.");
-    //     let callback = link.callback(|response: Response<Result<String, anyhow::Error>>| {
-    //         if response.status() == 204 {
-    //             Msg::JobsReceived(Ok(TaskResponse { jobs: Vec::new() }))
-    //         } else {
-    //             ConsoleService::error(&format!("received from delete: {:?}", response.status()));
-    //             Msg::Noop
-    //         }
-    //     });
-    //     Some(FetchService::fetch(request, callback).expect("failed to start request"))
-    // }
 }
