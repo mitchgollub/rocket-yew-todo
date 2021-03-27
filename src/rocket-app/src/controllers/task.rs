@@ -57,12 +57,17 @@ pub fn update_entry(
     let updated_entry = response.unwrap();
     let mut entries = map.lock().unwrap();
     let entries_clone = entries.to_vec();
+    let mut is_insert = true;
     for (idx, entry) in entries_clone.into_iter().enumerate() {
         if entry._id == updated_entry._id {
+            is_insert = false;
             entries.remove(idx);
-            entries.insert(idx, updated_entry);
+            entries.insert(idx, updated_entry.clone());
             break;
         }
+    }
+    if is_insert {
+        entries.push(updated_entry);
     }
 
     Some(Json(TaskResponse {

@@ -47,6 +47,7 @@ pub enum Msg {
     Nope,
     GetTasks,
     UpdateTask,
+    DeleteTask,
     UpdateTasks,
     TasksReceived(u64, Result<TaskResponse, Error>),
 }
@@ -114,8 +115,8 @@ impl Component for Model {
                 self.state.edit_value = val;
             }
             Msg::Remove(idx) => {
-                self.state.remove(idx);
-                self.link.send_message(Msg::UpdateTasks);
+                self.state.update_entry = Some(self.state.entries[idx].clone());
+                self.link.send_message(Msg::DeleteTask);
             }
             Msg::SetFilter(filter) => {
                 self.state.filter = filter;
@@ -179,6 +180,18 @@ impl Component for Model {
                 self.update_tasks.insert(
                     request_id,
                     TaskClient::update_task(
+                        &self.link,
+                        request_id,
+                        &self.state.update_entry.as_ref().unwrap(),
+                    ),
+                );
+            }
+            Msg::DeleteTask => {
+                let request_id = self.state.request_counter;
+                self.state.request_counter += 1;
+                self.update_tasks.insert(
+                    request_id,
+                    TaskClient::delete_task(
                         &self.link,
                         request_id,
                         &self.state.update_entry.as_ref().unwrap(),
