@@ -1,5 +1,6 @@
 use crate::Model;
 use crate::Msg;
+use todo_models::Entry;
 use todo_models::{TaskRequest, TaskResponse};
 use yew::format::{Json, Nothing};
 use yew::services::fetch::{FetchService, FetchTask, Request, Response};
@@ -31,6 +32,20 @@ impl TaskClient {
         let request = Request::put(TASK_API_URL)
             .header("Content-Type", "application/json")
             .body(Json(tasks))
+            .expect("Could not build request.");
+        let callback = link.callback(
+            move |response: Response<Json<Result<TaskResponse, anyhow::Error>>>| {
+                let Json(data) = response.into_body();
+                Msg::TasksReceived(request_id, data)
+            },
+        );
+        FetchService::fetch(request, callback).expect("failed to start request")
+    }
+
+    pub fn update_task(link: &ComponentLink<Model>, request_id: u64, entry: &Entry) -> FetchTask {
+        let request = Request::put(format!("{}/{}", TASK_API_URL, entry._id))
+            .header("Content-Type", "application/json")
+            .body(Json(entry))
             .expect("Could not build request.");
         let callback = link.callback(
             move |response: Response<Json<Result<TaskResponse, anyhow::Error>>>| {

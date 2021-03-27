@@ -25,6 +25,7 @@ pub struct Model {
 #[derive(Serialize, Deserialize)]
 pub struct State {
     entries: Vec<Entry>,
+    update_entry: Option<Entry>,
     filter: Filter,
     value: String,
     edit_value: String,
@@ -45,6 +46,7 @@ pub enum Msg {
     Focus,
     Nope,
     GetTasks,
+    UpdateTask,
     UpdateTasks,
     TasksReceived(u64, Result<TaskResponse, Error>),
 }
@@ -58,6 +60,7 @@ impl Component for Model {
 
         let state = State {
             entries,
+            update_entry: None,
             filter: Filter::All,
             value: "".into(),
             edit_value: "".into(),
@@ -87,18 +90,20 @@ impl Component for Model {
                         completed: false,
                         editing: false,
                     };
-                    self.state.entries.push(entry);
-                }
-                self.state.value = "".to_string();
+                    self.state.entries.push(entry.clone());
 
-                self.link.send_message(Msg::UpdateTasks);
+                    self.state.value = "".to_string();
+                    self.state.update_entry = Some(entry);
+                    self.link.send_message(Msg::UpdateTask);
+                }
             }
             Msg::Edit(idx) => {
                 let edit_value = self.state.edit_value.trim().to_string();
                 self.state.complete_edit(idx, edit_value);
                 self.state.edit_value = "".to_string();
 
-                self.link.send_message(Msg::UpdateTasks);
+                self.state.update_entry = Some(self.state.entries[idx].clone());
+                self.link.send_message(Msg::UpdateTask);
             }
             Msg::Update(val) => {
                 println!("Input: {}", val);
@@ -127,7 +132,8 @@ impl Component for Model {
             }
             Msg::Toggle(idx) => {
                 self.state.toggle(idx);
-                self.link.send_message(Msg::UpdateTasks);
+                self.state.update_entry = Some(self.state.entries[idx].clone());
+                self.link.send_message(Msg::UpdateTask);
             }
             Msg::ClearCompleted => {
                 self.state.clear_completed();
@@ -147,6 +153,7 @@ impl Component for Model {
             }
             Msg::TasksReceived(request_id, data) => {
                 self.update_tasks.remove(&request_id);
+                self.state.update_entry = None;
                 match data {
                     Ok(response) => self.state.entries = response.tasks,
                     Err(e) => ConsoleService::error(&e.to_string()),
@@ -163,6 +170,18 @@ impl Component for Model {
                         &TaskRequest {
                             tasks: self.state.entries.clone(),
                         },
+                    ),
+                );
+            }
+            Msg::UpdateTask => {
+                let request_id = self.state.request_counter;
+                self.state.request_counter += 1;
+                self.update_tasks.insert(
+                    request_id,
+                    TaskClient::update_task(
+                        &self.link,
+                        request_id,
+                        &self.state.update_entry.as_ref().unwrap(),
                     ),
                 );
             }
