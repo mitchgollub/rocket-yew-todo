@@ -91,7 +91,7 @@ impl MongoClient {
         Ok(entry)
     }
 
-    pub fn insert_task(&mut self, entry: &Entry) -> Result<String, Error> {
+    pub fn insert_task(&mut self, entry: Entry) -> Result<String, Error> {
         let update_doc = doc! {
             "completed": entry.completed,
             "description": entry.description.as_str(),

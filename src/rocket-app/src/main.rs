@@ -30,7 +30,11 @@ fn rocket() -> rocket::Rocket {
     rocket::ignite()
         .mount(
             "/tasks",
-            routes![controllers::task::list, controllers::task::update],
+            routes![
+                controllers::task::list,
+                controllers::task::update,
+                controllers::task::update_entry
+            ],
         )
         .mount("/", StaticFiles::from(&config_service.static_files))
         .register(catchers![not_found])

@@ -17,6 +17,24 @@ impl TaskService {
         self.mongo_client.get_tasks()
     }
 
+    pub fn update_task(&mut self, entry: Entry) -> Result<Entry, Error> {
+        let mut new_entry = entry.clone();
+
+        // _id will be an empty string for new entries from front-end
+        match entry._id.is_empty() {
+            false => {
+                // Update Document
+                new_entry = self.mongo_client.update_task(entry)?;
+            }
+            true => {
+                // Insert new document
+                new_entry._id = self.mongo_client.insert_task(entry)?;
+            }
+        }
+
+        Ok(new_entry)
+    }
+
     pub fn update_tasks(&mut self, entries: Vec<Entry>) -> Result<Vec<Entry>, Error> {
         let mut updates = Vec::new();
 
@@ -31,7 +49,7 @@ impl TaskService {
                 }
                 true => {
                     // Insert new document
-                    new_entry._id = self.mongo_client.insert_task(entry)?;
+                    new_entry._id = self.mongo_client.insert_task(new_entry.clone())?;
                 }
             }
 
