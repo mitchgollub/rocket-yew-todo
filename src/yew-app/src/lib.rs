@@ -1,27 +1,25 @@
 #![recursion_limit = "512"]
 
 mod services;
-use crate::Msg::SetTaskFetchState;
+use crate::services::task_client::TaskClient;
+use anyhow::Error;
 use serde_derive::{Deserialize, Serialize};
-use services::task::{
-    PutTaskRequest, RequestBody, TaskFetchAction, TaskRequest, UpdateTaskRequest,
-};
 use strum::IntoEnumIterator;
 use strum_macros::{EnumIter, ToString};
-use todo_models::Entry;
+use todo_models::{Entry, TaskRequest, TaskResponse};
 use wasm_bindgen::prelude::*;
 use yew::events::KeyboardEvent;
+use yew::services::fetch::FetchTask;
+use yew::services::ConsoleService;
 use yew::web_sys::HtmlInputElement as InputElement;
 use yew::{html, Component, ComponentLink, Href, Html, InputData, NodeRef, ShouldRender};
-use yewtil::fetch::FetchAction;
-use yewtil::future::LinkFuture;
 
 pub struct Model {
     link: ComponentLink<Self>,
     state: State,
     focus_ref: NodeRef,
-    message: TaskRequest,
-    update_message: UpdateTaskRequest,
+    get_tasks: Option<FetchTask>,
+    update_tasks: Option<FetchTask>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -45,10 +43,9 @@ pub enum Msg {
     ClearCompleted,
     Focus,
     Nope,
-    SetTaskFetchState(TaskFetchAction),
-    SetUpdateTaskFetchState(TaskFetchAction),
     GetTasks,
     UpdateTasks,
+    TasksReceived(Result<TaskResponse, Error>),
 }
 
 impl Component for Model {
@@ -65,8 +62,6 @@ impl Component for Model {
             edit_value: "".into(),
         };
         let focus_ref = NodeRef::default();
-        let message: TaskRequest = Default::default();
-        let update_message: UpdateTaskRequest = Default::default();
 
         // Load task data on load
         link.send_message(Msg::GetTasks);
@@ -75,8 +70,8 @@ impl Component for Model {
             link,
             state,
             focus_ref,
-            message,
-            update_message,
+            get_tasks: None,
+            update_tasks: None,
         }
     }
 
@@ -143,51 +138,30 @@ impl Component for Model {
                 }
             }
             Msg::Nope => {}
-            Msg::SetTaskFetchState(fetch_state) => {
-                match fetch_state {
-                    FetchAction::Failed(err) => {
-                        self.message.set_failed(err);
-                    }
-                    FetchAction::Fetched(res) => {
-                        // self.message.set_fetched(res);
-                        self.state.entries = res.tasks;
-                    }
-                    FetchAction::Fetching => {
-                        self.message.set_fetching();
-                    }
-                    FetchAction::NotFetching => {
-                        self.message.set_not_fetching();
-                    }
-                }
-            }
-            Msg::SetUpdateTaskFetchState(fetch_state) => match fetch_state {
-                FetchAction::Failed(err) => {
-                    self.update_message.set_failed(err);
-                }
-                FetchAction::Fetched(res) => {
-                    self.state.entries = res.tasks;
-                }
-                FetchAction::Fetching => {
-                    self.update_message.set_fetching();
-                }
-                FetchAction::NotFetching => {
-                    self.update_message.set_not_fetching();
-                }
-            },
             Msg::GetTasks => {
-                self.link
-                    .send_future(self.message.fetch(Msg::SetTaskFetchState));
-                self.link
-                    .send_message(SetTaskFetchState(FetchAction::Fetching));
+                self.get_tasks = TaskClient::get_tasks(&self.link);
+            }
+            Msg::TasksReceived(data) => {
+                self.get_tasks = None;
+                match data {
+                    Ok(response) => self.state.entries = response.tasks,
+                    Err(e) => ConsoleService::error(&e.to_string()),
+                };
             }
             Msg::UpdateTasks => {
-                let update_task = UpdateTaskRequest::new(PutTaskRequest {
-                    data: RequestBody {
-                        tasks: self.state.entries.to_vec(),
+                self.update_tasks = TaskClient::update_tasks(
+                    &self.link,
+                    &TaskRequest {
+                        tasks: self.state.entries.clone(),
                     },
-                });
-                self.link
-                    .send_future(update_task.fetch(Msg::SetUpdateTaskFetchState));
+                );
+                // let update_task = UpdateTaskRequest::new(PutTaskRequest {
+                //     data: RequestBody {
+                //         tasks: self.state.entries.to_vec(),
+                //     },
+                // });
+                // self.link
+                //     .send_future(update_task.fetch(Msg::SetUpdateTaskFetchState));
             }
         }
         true

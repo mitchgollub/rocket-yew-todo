@@ -13,3 +13,8 @@ pub struct Entry {
     pub description: String,
     pub editing: bool,
 }
+
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+pub struct TaskRequest {
+    pub tasks: Vec<Entry>,
+}
