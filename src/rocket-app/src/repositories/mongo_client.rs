@@ -91,6 +91,20 @@ impl MongoClient {
         Ok(entry)
     }
 
+    pub fn add_task(&mut self, mut entry: Entry) -> Result<Entry, Error> {
+        let new_doc = doc! {
+            "completed": entry.completed,
+            "description": entry.description.as_str(),
+            "editing": entry.editing
+        };
+        let collection = self.connect().unwrap();
+
+        let insert_response = collection.insert_one(new_doc, None)?;
+        entry._id = insert_response.inserted_id.as_object_id().unwrap().to_hex();
+
+        Ok(entry)
+    }
+
     pub fn delete_task(&mut self, entry_id: String) -> Result<String, Error> {
         let delete_doc = doc! {
             "_id": ObjectId::with_string(&entry_id).unwrap()

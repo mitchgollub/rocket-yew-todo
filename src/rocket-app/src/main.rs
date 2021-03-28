@@ -35,6 +35,7 @@ fn rocket() -> rocket::Rocket {
                 controllers::task::update,
                 controllers::task::update_entry,
                 controllers::task::delete_entry,
+                controllers::task::add_entry,
             ],
         )
         .mount("/", StaticFiles::from(&config_service.static_files))

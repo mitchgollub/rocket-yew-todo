@@ -75,6 +75,29 @@ pub fn update_entry(
     }))
 }
 
+#[post("/", format = "json", data = "<entry_body>")]
+pub fn add_entry(
+    entry_body: Json<Entry>,
+    map: State<EntryMap>,
+    task_repo: State<Mutex<TaskService>>,
+) -> Option<Json<TaskResponse>> {
+    let response = task_repo.lock().unwrap().add_task(Entry {
+        _id: entry_body._id.to_string(),
+        description: entry_body.description.to_string(),
+        completed: entry_body.completed,
+        editing: entry_body.editing,
+    });
+
+    let add_entry = response.unwrap();
+    let mut entries = map.lock().unwrap();
+
+    entries.push(add_entry);
+
+    Some(Json(TaskResponse {
+        tasks: entries.to_vec(),
+    }))
+}
+
 #[delete("/<entry_id>", format = "json")]
 pub fn delete_entry(
     entry_id: String,

@@ -62,4 +62,8 @@ impl TaskService {
     pub fn delete_task(&mut self, entry_id: String) -> Result<String, Error> {
         self.mongo_client.delete_task(entry_id)
     }
+
+    pub fn add_task(&mut self, entry: Entry) -> Result<Entry, Error> {
+        self.mongo_client.add_task(entry)
+    }
 }
