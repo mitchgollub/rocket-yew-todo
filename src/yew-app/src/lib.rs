@@ -47,6 +47,7 @@ pub enum Msg {
     Nope,
     GetTasks,
     UpdateTask,
+    AddTask,
     DeleteTask,
     UpdateTasks,
     TasksReceived(u64, Result<TaskResponse, Error>),
@@ -95,7 +96,7 @@ impl Component for Model {
 
                     self.state.value = "".to_string();
                     self.state.update_entry = Some(entry);
-                    self.link.send_message(Msg::UpdateTask);
+                    self.link.send_message(Msg::AddTask);
                 }
             }
             Msg::Edit(idx) => {
@@ -180,6 +181,18 @@ impl Component for Model {
                 self.update_tasks.insert(
                     request_id,
                     TaskClient::update_task(
+                        &self.link,
+                        request_id,
+                        &self.state.update_entry.as_ref().unwrap(),
+                    ),
+                );
+            }
+            Msg::AddTask => {
+                let request_id = self.state.request_counter;
+                self.state.request_counter += 1;
+                self.update_tasks.insert(
+                    request_id,
+                    TaskClient::add_task(
                         &self.link,
                         request_id,
                         &self.state.update_entry.as_ref().unwrap(),

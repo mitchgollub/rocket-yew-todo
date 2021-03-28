@@ -60,6 +60,20 @@ impl TaskClient {
         FetchService::fetch(request, callback).expect("failed to start request")
     }
 
+    pub fn add_task(link: &ComponentLink<Model>, request_id: u64, entry: &Entry) -> FetchTask {
+        let request = Request::post(format!("{}", TASK_API_URL))
+            .header("Content-Type", "application/json")
+            .body(Json(entry))
+            .expect("Could not build request.");
+        let callback = link.callback(
+            move |response: Response<Json<Result<TaskResponse, anyhow::Error>>>| {
+                let Json(data) = response.into_body();
+                Msg::TasksReceived(request_id, data)
+            },
+        );
+        FetchService::fetch(request, callback).expect("failed to start request")
+    }
+
     pub fn delete_task(link: &ComponentLink<Model>, request_id: u64, entry: &Entry) -> FetchTask {
         let request = Request::delete(format!("{}/{}", TASK_API_URL, entry._id))
             .header("Content-Type", "application/json")
