@@ -12,7 +12,6 @@ use repositories::mongo_client::MongoClient;
 use rocket_contrib::{json::JsonValue, serve::StaticFiles};
 use services::{config::Config, task::TaskService};
 use std::sync::Mutex;
-use todo_models::Entry;
 
 #[catch(404)]
 fn not_found() -> JsonValue {
@@ -23,7 +22,6 @@ fn not_found() -> JsonValue {
 }
 
 fn rocket() -> rocket::Rocket {
-    let entries: Vec<Entry> = Vec::new();
     let config_service = Config::new();
     let mongo_client = MongoClient::new(config_service.clone());
 
@@ -40,7 +38,6 @@ fn rocket() -> rocket::Rocket {
         )
         .mount("/", StaticFiles::from(&config_service.static_files))
         .register(catchers![not_found])
-        .manage(Mutex::new(entries))
         .manage(Mutex::new(TaskService::new(mongo_client)))
 }
 

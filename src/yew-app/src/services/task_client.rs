@@ -52,9 +52,9 @@ impl TaskClient {
             .body(Json(entry))
             .expect("Could not build request.");
         let callback = link.callback(
-            move |response: Response<Json<Result<TaskResponse, anyhow::Error>>>| {
+            move |response: Response<Json<Result<Entry, anyhow::Error>>>| {
                 let Json(data) = response.into_body();
-                Msg::TasksReceived(request_id, data)
+                Msg::UpdateEntryReceived(request_id, data)
             },
         );
         FetchService::fetch(request, callback).expect("failed to start request")
@@ -66,9 +66,9 @@ impl TaskClient {
             .body(Json(entry))
             .expect("Could not build request.");
         let callback = link.callback(
-            move |response: Response<Json<Result<TaskResponse, anyhow::Error>>>| {
+            move |response: Response<Json<Result<Entry, anyhow::Error>>>| {
                 let Json(data) = response.into_body();
-                Msg::TasksReceived(request_id, data)
+                Msg::AddEntryReceived(request_id, data)
             },
         );
         FetchService::fetch(request, callback).expect("failed to start request")
@@ -80,9 +80,9 @@ impl TaskClient {
             .body(Nothing)
             .expect("Could not build request.");
         let callback = link.callback(
-            move |response: Response<Json<Result<TaskResponse, anyhow::Error>>>| {
+            move |response: Response<Json<Result<String, anyhow::Error>>>| {
                 let Json(data) = response.into_body();
-                Msg::TasksReceived(request_id, data)
+                Msg::DeleteEntryReceived(request_id, data)
             },
         );
         FetchService::fetch(request, callback).expect("failed to start request")

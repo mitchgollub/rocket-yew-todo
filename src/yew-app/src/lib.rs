@@ -51,6 +51,9 @@ pub enum Msg {
     DeleteTask,
     UpdateTasks,
     TasksReceived(u64, Result<TaskResponse, Error>),
+    UpdateEntryReceived(u64, Result<Entry, Error>),
+    AddEntryReceived(u64, Result<Entry, Error>),
+    DeleteEntryReceived(u64, Result<String, Error>),
 }
 
 impl Component for Model {
@@ -92,7 +95,6 @@ impl Component for Model {
                         completed: false,
                         editing: false,
                     };
-                    self.state.entries.push(entry.clone());
 
                     self.state.value = "".to_string();
                     self.state.update_entry = Some(entry);
@@ -117,6 +119,7 @@ impl Component for Model {
             }
             Msg::Remove(idx) => {
                 self.state.update_entry = Some(self.state.entries[idx].clone());
+                self.state.entries.remove(idx);
                 self.link.send_message(Msg::DeleteTask);
             }
             Msg::SetFilter(filter) => {
@@ -160,6 +163,39 @@ impl Component for Model {
                     Ok(response) => self.state.entries = response.tasks,
                     Err(e) => ConsoleService::error(&e.to_string()),
                 };
+            }
+            Msg::UpdateEntryReceived(request_id, data) => {
+                self.update_tasks.remove(&request_id);
+                self.state.update_entry = None;
+                match data {
+                    Ok(entry) => {
+                        let idx = self
+                            .state
+                            .entries
+                            .clone()
+                            .into_iter()
+                            .position(|task| task._id == entry._id)
+                            .unwrap();
+                        self.state.entries[idx] = entry;
+                    }
+                    Err(e) => ConsoleService::error(&e.to_string()),
+                }
+            }
+            Msg::AddEntryReceived(request_id, data) => {
+                self.update_tasks.remove(&request_id);
+                self.state.update_entry = None;
+                match data {
+                    Ok(entry) => self.state.entries.insert(0, entry),
+                    Err(e) => ConsoleService::error(&e.to_string()),
+                }
+            }
+            Msg::DeleteEntryReceived(request_id, data) => {
+                self.update_tasks.remove(&request_id);
+                self.state.update_entry = None;
+                match data {
+                    Ok(entry) => ConsoleService::info(&format!("Entry deleted: {}", entry)),
+                    Err(e) => ConsoleService::error(&e.to_string()),
+                }
             }
             Msg::UpdateTasks => {
                 let request_id = self.state.request_counter;
